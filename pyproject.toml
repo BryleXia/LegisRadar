@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "legisradar"
+version = "0.1.0"
+description = "立法雷达（查看器）— 把各部委正在公开征求意见的法规草案收进一张本地看板"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+
+# ★ 零依赖，而且这不是「尽量」—— 是设计目标。
+#
+# 这个包要做的全部事情是「下载一个 JSON、渲染一张 HTML」，标准库足够
+# （urllib + json + tomllib）。解压双击就能用，不需要 pip 装任何东西。
+#
+# ⚠ requires-python 是 3.11，不是 3.10：读 config.toml 用的 tomllib 到 3.11
+#   才进标准库。3.10 上它会缺失，于是 config.toml 整份读不了 ——
+#   所有配置回落成默认值，而用户以为自己配过。写库的命令（sync）会因此
+#   拒绝运行并说明原因；board / status 这类只读的会硬跑，用默认值。
+#   与其在 3.10 上给出一串这种意外，不如把门槛写实。
+dependencies = []
+
+[project.scripts]
+legisradar = "legisradar.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# 看板模板必须随包走 —— 漏了这条，非 -e 安装后一生成看板就 FileNotFoundError。
+[tool.setuptools.package-data]
+legisradar = ["templates/*.html"]

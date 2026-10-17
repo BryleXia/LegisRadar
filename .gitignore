@@ -1,0 +1,16 @@
+# 本地数据与产物 —— 都不进版本库。
+
+# 条目库、同步记录、看板（跑一次 sync 就有了）
+/data/
+/board.html
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 谁在这个目录里 pip install -e . 都会留下它
+*.egg-info/
+build/
+dist/
+.pytest_cache/

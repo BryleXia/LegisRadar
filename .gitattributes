@@ -1,0 +1,26 @@
+# 行尾规范化。这个仓库要分发到 Windows / macOS / Linux 三端。
+#
+# 不指定的话，git 在 Windows 上签出会把 LF 换成 CRLF，于是同一份 Python
+# 文件在不同机器上产生整文件级的假 diff（内容一个字没改，diff 却是全文件）。
+#
+# 规则：
+#   · 源码、配置、文档一律 LF —— 三端都能正确处理
+#   · .bat 保持 CRLF —— cmd.exe 的传统行尾
+
+* text=auto eol=lf
+
+# ⚠ .bat 必须用 -text，**不能用 text eol=crlf**。
+#
+# 但 `text` 的语义是「提交时把行尾规范化成 LF」—— 于是**仓库里存的是 LF**。
+# `git clone` 的人没事（签出时转回来），可点 GitHub「Download ZIP」的人
+# 拿到的是仓库里那份 LF —— 而 ZIP 恰恰是这个项目最主要的下载方式。
+# 也就是说：规矩和实际存储对不上，只有走 ZIP 的人会中招，最难发现的那种。
+#
+# `-text` = 一个字节都别动。工作区什么字节，仓库里就什么字节。
+# 后头的 `diff` 是补偿：-text 会让 git 把文件当二进制、diff 变成
+# 「Binary files differ」，.bat 里改一个中文字符就完全看不出改了啥。
+*.bat -text diff
+
+# 二进制，别碰
+*.png binary
+*.jpg binary

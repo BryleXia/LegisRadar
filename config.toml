@@ -1,0 +1,43 @@
+# 立法雷达（查看器）· 配置
+#
+# 改完下次运行生效。
+# ⚠ 正在跑 serve 的话，端口和看板路径是启动时读死的 —— 那两项改完要重开。
+#
+# ⚠ 字符串里的 \ 是转义符，而 Windows 路径全是反斜杠。
+#   路径要写成单引号字面量：data_dir = 'D:\legisradar-data'
+#   写成双引号会读不懂整份配置，或者更糟 —— 悄悄把值改掉。
+
+[general]
+data_dir = "data"          # 条目库、同步记录的存放处
+board = "board.html"       # 看板输出位置（双击即可打开）
+
+[viewer]
+# 条目索引从哪儿拉。留空则 sync 必须用 --from 指定。
+#
+# ★ 这是本程序唯一会主动访问的地址。
+#
+# ★★ 主地址是 jsDelivr 而不是 raw.githubusercontent.com：
+#
+#    这份程序的主要读者在国内家庭宽带、通常无代理的条件下用它。在这类网络下：
+#      raw.githubusercontent.com   通常连不通（连接被重置，或者一直挂到超时）
+#      cdn.jsdelivr.net            jsDelivr 的默认域名，同样不通
+#      fastly.jsdelivr.net         通              ← 主地址
+#      gcore.jsdelivr.net          时通时不通       ← 备用
+#
+#    这四个都是同一份索引的不同入口。放在前面的两个是 jsDelivr，
+#    只是边缘节点域名不同，路径写法完全一样 —— 换一个域名就够了。
+#    jsDelivr 对分支引用（@main）缓存 12 小时（官方文档写明），
+#    对一个一周更新一次的东西可以忽略。
+index_url = "https://fastly.jsdelivr.net/gh/BryleXia/Legisradar@main/index.json"
+
+# 主地址不通时依次尝试。两个 jsDelivr 边缘都不通时，退到 GitHub 原址 ——
+# 它在墙外、装了代理就能用，而且是这份索引的源头本身，不受镜像那份缓存影响。
+index_mirrors = [
+  "https://gcore.jsdelivr.net/gh/BryleXia/Legisradar@main/index.json",
+  "https://raw.githubusercontent.com/BryleXia/Legisradar/main/index.json",
+]
+
+[serve]
+# 本地服务：只听 127.0.0.1。看板上的「已截止」按钮需要它
+# （静态页写不了文件，点得动却改不了的假按钮比没有更糟）。
+port = 8765

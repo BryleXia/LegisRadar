@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 标签页图标：一枚实心圆，整枚打进 data URI，页面不引外部文件。
+     不带 media 的那枚兜底，暗色系统的另一枚换浅绿 —— 单色在小尺寸下总有一边发灰。 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%2016%27%3E%3Ccircle%20cx%3D%278%27%20cy%3D%278%27%20r%3D%277.6%27%20fill%3D%27%232F5D50%27%20fill-opacity%3D%27.20%27%2F%3E%3Ccircle%20cx%3D%278%27%20cy%3D%278%27%20r%3D%274.6%27%20fill%3D%27%232F5D50%27%2F%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%2016%27%3E%3Ccircle%20cx%3D%278%27%20cy%3D%278%27%20r%3D%277.6%27%20fill%3D%27%237FB69F%27%20fill-opacity%3D%27.24%27%2F%3E%3Ccircle%20cx%3D%278%27%20cy%3D%278%27%20r%3D%274.6%27%20fill%3D%27%237FB69F%27%2F%3E%3C%2Fsvg%3E" media="(prefers-color-scheme: dark)">
+<meta name="legisradar-serve-token" content="">
+<title>立法雷达 · 法规草案征求意见</title>
+<style>
+/* ==========================================================================
+   立法雷达 · 看板
+   版式主线是时限：每条左侧是倒计时格，大号等宽数字锚定整行。
+   暖色只留给时限 —— 3 天以内红、4~7 天琥珀，其余一律冷色。
+   ========================================================================== */
+
+:root {
+  --paper:    #F1F3F2;
+  --surface:  #FFFFFF;
+  --surface-2:#F7F9F8;
+  --ink:      #000000;
+  --ink-2:    #1A1A1A;
+  --muted:    #4A544F;
+  --line:     #DCE2DF;
+  --line-2:   #EAEFEC;
+  --accent:   #2F5D50;
+  --accent-s: #E4EDE9;
+  --urgent:   #C0392B;
+  --urgent-s: #FBEBE9;
+  --soon:     #9A560B;
+  --soon-s:   #FAF0E1;
+  --calm:     #2F5D50;
+
+  --radius: 10px;
+  --radius-s: 6px;
+  --shadow: 0 1px 2px rgba(21,28,25,.05), 0 4px 14px -8px rgba(21,28,25,.14);
+}
+
+/* 暗色只有这一个入口：页面不再跟随系统，也没有第三个状态。
+   data-theme 由 <head> 里那段脚本在首帧之前就贴好（默认 light）。 */
+:root[data-theme="dark"] {
+  --paper:    #0F1412;
+  --surface:  #171E1B;
+  --surface-2:#1C2420;
+  --ink:      #FFFFFF;
+  --ink-2:    #E8E8E8;
+  --muted:    #A8B5AE;
+  --line:     #2A3530;
+  --line-2:   #212B26;
+  --accent:   #7FB69F;
+  --accent-s: #1B2C25;
+  --urgent:   #E8705F;
+  --urgent-s: #33201D;
+  --soon:     #D9A441;
+  --soon-s:   #2F2718;
+  --calm:     #7FB69F;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px -8px rgba(0,0,0,.6);
+}
+
+* { box-sizing: border-box; }
+
+/* 必须放在组件样式之前：任何带 display 的类（比如分组列表那个 .rows）
+   特异性都高于 UA 样式表里的 [hidden]{display:none}，会把 hidden 属性架空。 */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
+               "Source Han Sans SC", "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", "Roboto Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+
+/* ---------------------------------------------------------------- 页头 */
+
+.hdr {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 30;
+}
+.hdr .wrap {
+  display: flex; flex-wrap: wrap; gap: 12px 20px;
+  align-items: flex-end; justify-content: space-between;
+  padding-top: 18px; padding-bottom: 14px;
+}
+.wordmark {
+  margin: 0; font-size: 21px; font-weight: 700; letter-spacing: .04em;
+  display: inline-flex; align-items: baseline; gap: 9px;
+}
+.wordmark::before {
+  /* 一枚静止的扫描刻度：与「雷达」同构，不用图标字体 */
+  content: ""; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--accent); display: inline-block;
+  box-shadow: 0 0 0 3px var(--accent-s);
+  transform: translateY(-1px);
+}
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; letter-spacing: .01em; }
+
+.hdr-side { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+.heartbeat { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--calm); flex: none; }
+.dot.warn { background: var(--soon); }
+.dot.bad  { background: var(--urgent); }
+
+.tools { display: flex; gap: 6px; }
+.btn {
+  font: inherit; font-size: 12px; line-height: 1;
+  padding: 7px 10px; border-radius: var(--radius-s); cursor: pointer;
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--line);
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn:hover { background: var(--surface-2); border-color: var(--muted); color: var(--ink); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[disabled] { color: var(--muted); cursor: default; }
+
+/* ------------------------------------------------------- 概览条 */
+
+/* 三个数字横排，各是「数字 + 说明」；只有「7 天内截止」那一项带强调色
+   （琥珀，.stat.soon），另两项不强调。数字与说明之间的间隔由 .stat 的 gap
+   给出，两者中间的空白文本节点不参与排版。 */
+.summary { padding: 20px 0 4px; display: flex; flex-wrap: wrap; gap: 8px 26px; align-items: baseline; }
+.stat { display: flex; align-items: baseline; gap: 6px; }
+.stat b {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 25px; font-weight: 600; letter-spacing: -.02em;
+}
+.stat span { font-size: 12.5px; color: var(--muted); }
+.stat.soon   b { color: var(--soon); }
+
+/* ------------------------------------------------------- 控件 */
+
+.controls { padding: 14px 0 6px; display: flex; flex-direction: column; gap: 10px; }
+.search {
+  font: inherit; font-size: 13.5px; width: 100%;
+  padding: 9px 12px; border-radius: var(--radius-s);
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.search::placeholder { color: var(--muted); }
+.search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit; font-size: 12px; line-height: 1;
+  padding: 6px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+}
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* 暗色主题下强调色换成浅绿（#7FB69F），上面那种白字对比度不够，
+   要配近黑字。★ 这条深字规则必须待在暗色判定里面。写在外面的后果是：
+   浅色首帧（data-theme="light"、强调色仍是深绿）也被配上近黑字 ——
+   深绿底深字，一打开就是坏的。 */
+:root[data-theme="dark"] .chip[aria-pressed="true"] { color: #0F1412; }
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ------------------------------------------------------- 分组 */
+
+.group { margin: 22px 0 0; }
+.group-hd {
+  display: flex; align-items: center; gap: 9px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  cursor: pointer; user-select: none; background: none; border-left: 0; border-right: 0; border-top: 0;
+  width: 100%; font: inherit; color: inherit; text-align: left;
+}
+.group-hd:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.group-hd h2 { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: .1em; color: var(--ink-2); }
+.group-hd .count {
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.group-hd .caret { margin-left: auto; color: var(--muted); font-size: 11px; transition: transform .15s ease; }
+.group-hd[aria-expanded="false"] .caret { transform: rotate(-90deg); }
+.group-hd.soon h2 { color: var(--soon); }
+.group-sub { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.group-note { font-size: 12px; color: var(--muted); }
+
+/* ------------------------------------------------------- 条目 */
+
+.rows { list-style: none; margin: 0; padding: 0; }
+
+.row {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 0 16px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.row:hover { background: var(--surface-2); }
+
+/* —— 倒计时：整页的锚点 —— */
+.cd {
+  text-align: right;
+  padding-top: 1px;
+  display: flex; flex-direction: column; align-items: flex-end;
+  border-right: 2px solid var(--line);
+  padding-right: 12px;
+}
+.cd .n {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 27px; font-weight: 600; line-height: 1; letter-spacing: -.03em;
+  color: var(--ink);
+}
+.cd .u { font-size: 11px; color: var(--muted); letter-spacing: .12em; margin-top: 3px; }
+.cd .none { font-size: 12px; color: var(--muted); }
+
+/* 紧急度靠 .row 上的 data-urg 区分：3 = 剩余 3 天以内（红）、2 = 4~7 天（琥珀）、
+   0 = 其余（冷色，含没有截止日期的那种）、-1 = 已截止。这是一份契约：
+   值写错或漏写一个不会有任何报错，只会让配色静默地整片落回默认色。 */
+.row[data-urg="3"] .cd { border-right-color: var(--urgent); }
+.row[data-urg="3"] .cd .n { color: var(--urgent); }
+.row[data-urg="3"] .cd .u { color: var(--urgent); }
+.row[data-urg="2"] .cd { border-right-color: var(--soon); }
+.row[data-urg="2"] .cd .n { color: var(--soon); }
+.row[data-urg="2"] .cd .u { color: var(--soon); }
+.row[data-urg="0"] .cd { border-right-color: var(--line); }
+.row[data-urg="0"] .cd .n { color: var(--muted); }
+
+/* 已截止：一道斜线划掉。全页唯一带情绪的一笔。 */
+.row[data-urg="-1"] .cd .n { position: relative; color: var(--muted); }
+.row[data-urg="-1"] .cd .n::after {
+  content: ""; position: absolute; left: -4px; right: -4px; top: 50%;
+  height: 2px; background: var(--muted); transform: rotate(-14deg); opacity: .75;
+}
+
+.row-body { min-width: 0; }
+
+.title {
+  margin: 0 0 5px; font-size: 15.5px; font-weight: 600; line-height: 1.45;
+  color: var(--ink); word-break: break-word;
+}
+.title a { color: inherit; text-decoration: none; border-bottom: 1px solid transparent; }
+.title a:hover { border-bottom-color: var(--accent); }
+.title a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+.meta {
+  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center;
+  font-size: 12.5px; color: var(--muted);
+}
+.meta .sep { opacity: .45; }
+.lvl {
+  font-size: 11px; padding: 2px 7px; border-radius: 4px; letter-spacing: .04em;
+  background: var(--accent-s); color: var(--accent); font-weight: 600;
+}
+.lvl[data-l="法律"]      { background: var(--accent-s); color: var(--accent); }
+.lvl[data-l="行政法规"]  { background: var(--accent-s); color: var(--accent); }
+.lvl[data-l="部门规章"]  { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.lvl[data-l="司法解释"]  { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+
+.note { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 6px; font-size: 12px; color: var(--muted); }
+/* 人工标的「已截止」必须看得见：机器对没有截止日期的条目永远判「在征」，
+   两者不加标记就一模一样。 */
+.mark {
+  font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600;
+  background: var(--soon-s); color: var(--soon);
+}
+
+.tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.tag {
+  font-size: 11px; padding: 2px 7px; border-radius: 4px;
+  background: var(--surface-2); color: var(--muted); border: 1px solid var(--line);
+}
+
+.row-act { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 9px; }
+.link {
+  font-size: 12px; padding: 5px 9px; border-radius: var(--radius-s);
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-2); text-decoration: none; line-height: 1;
+}
+.link:hover { border-color: var(--accent); color: var(--accent); }
+.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nolink { font-size: 12px; color: var(--muted); }
+
+/* ------------------------------------------------------- 相关条目 */
+
+.related { margin-top: 9px; }
+.related > summary {
+  /* cursor 与 user-select 是必须的：同为折叠控件的 .group-hd 有手型光标，
+     这里不设就成了文本 I 形，同一个页面两套行为。 */
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 12px; line-height: 1;
+  padding: 5px 9px; border-radius: var(--radius-s);
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  cursor: pointer; user-select: none; list-style: none;
+}
+.related > summary::-webkit-details-marker { display: none; }
+.related > summary::before {
+  content: "▸"; font-size: 10px; color: var(--muted); transition: transform .15s ease;
+}
+.related[open] > summary::before { transform: rotate(90deg); }
+.related > summary:hover { border-color: var(--accent); color: var(--accent); }
+.related > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.related ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.related li {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px;
+  padding: 6px 0; font-size: 13px; border-top: 1px solid var(--line-2);
+}
+.related li:first-child { border-top: 0; }
+.related a {
+  color: var(--ink-2); text-decoration: none;
+  border-bottom: 1px solid var(--line); word-break: break-word;
+}
+.related a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.related a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.related .gone { color: var(--muted); }
+
+.rk {
+  font-size: 11px; padding: 1px 6px; border-radius: 4px; flex: none;
+  background: var(--accent-s); color: var(--accent); font-weight: 600;
+}
+.rk.closed { background: var(--surface-2); color: var(--muted); }
+
+/* ------------------------------------------------------- 空态 */
+
+.empty {
+  margin: 26px 0 0; padding: 34px 24px; text-align: center;
+  border: 1px dashed var(--line); border-radius: var(--radius); background: var(--surface);
+}
+.empty h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.empty p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+/* ------------------------------------------------------- 页脚 */
+
+.ftr {
+  margin-top: 46px; padding: 20px 0 34px;
+  border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--muted); line-height: 1.85;
+}
+.ftr a { color: var(--muted); }
+.ftr p { margin: 0; }
+.ftr-hint { text-align: right; }
+
+/* ------------------------------------------------------- 关于面板 */
+
+.sheet {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink);
+  padding: 0; width: calc(100% - 32px); max-width: 620px;
+  box-shadow: var(--shadow);
+}
+.sheet::backdrop { background: rgba(8, 12, 10, .5); }
+.sheet-hd {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px; border-bottom: 1px solid var(--line);
+}
+.sheet-hd h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.sheet-hd .btn { margin-left: auto; }
+.sheet-bd { padding: 4px 16px 18px; max-height: min(72vh, 620px); overflow: auto; font-size: 13px; }
+.sheet-bd h3 {
+  margin: 18px 0 6px; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .09em; color: var(--muted);
+}
+.sheet-bd h3:first-child { margin-top: 12px; }
+.sheet-bd p { margin: 6px 0; color: var(--ink-2); line-height: 1.7; }
+.sheet-bd .kv { display: flex; gap: 10px; padding: 3px 0; align-items: baseline; }
+.sheet-bd .kv .k { color: var(--muted); flex: none; min-width: 5.5em; }
+.sheet-bd .kv .v { color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
+/* 面板里的等宽片段：点一下即全选。不用 navigator.clipboard ——
+   file:// 下它能不能用取决于浏览器，而 user-select:all 必定可用。 */
+.sheet-bd code {
+  user-select: all;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px; background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px;
+}
+.sheet-bd .hint { color: var(--muted); font-size: 12px; }
+
+/* ------------------------------------------------------- 本页补充 */
+/* 层级组与门类组之间的分隔：让人看出「全部层级」属于层级那一组，不是一个门类。 */
+.chips + .chips { border-top: 1px solid var(--line); padding-top: 10px; }
+</style>
+<script>
+/* 尽早把记住的主题贴上去：等渲染脚本跑完再切，首帧会闪一下。
+   只有两个模式 —— 没存过或读不到，一律浅色；页面不看系统偏好。 */
+(function () {
+  var mode = 'light';
+  try {
+    if (window.localStorage.getItem('legisradar.theme.v1') === 'dark') {
+      mode = 'dark';
+    }
+  } catch (err) {
+    /* 存不了（隐私模式、被策略挡掉）就浅色，不影响这一页的其余部分。 */
+  }
+  document.documentElement.setAttribute('data-theme', mode);
+})();
+</script>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="wrap">
+    <div>
+      <h1 class="wordmark">立法雷达</h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <div class="hdr-side">
+      <div class="heartbeat" id="heartbeat"></div>
+      <div class="tools">
+        <button class="btn" id="theme-toggle" type="button"></button>
+        <button class="btn" id="about-open" type="button"></button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="summary" id="summary"></div>
+  <div class="controls">
+    <input class="search" id="search" type="search" autocomplete="off">
+    <div class="chips" id="chips-level"></div>
+    <div class="chips" id="chips-tags"></div>
+  </div>
+  <div id="groups"></div>
+  <div class="empty" id="empty" hidden></div>
+</main>
+
+<footer class="ftr">
+  <div class="wrap">
+    <p id="serve-hint" hidden></p>
+    <p id="footer-source"></p>
+    <p class="ftr-hint" id="refresh-hint"></p>
+  </div>
+</footer>
+
+<dialog class="sheet" id="about">
+  <div class="sheet-hd">
+    <h2 id="about-heading"></h2>
+    <button class="btn" id="about-close" type="button"></button>
+  </div>
+  <div class="sheet-bd" id="about-body"></div>
+</dialog>
+
+<script type="application/json" id="lr-data">__LEGISRADAR_DATA__</script>
+<script>
+(function () {
+  'use strict';
+
+  var data = JSON.parse(document.getElementById('lr-data').textContent);
+  var S = data.strings;
+  var T = data.text;
+  var THEME_KEY = 'legisradar.theme.v1';
+  /* 两个模式，没有第三个。跟随系统那一档已经去掉：读者点得到的状态
+     就是屏幕上正在显示的那个，不会出现「按钮写着一回事、实际看运气」。 */
+  var THEME_MODES = ['light', 'dark'];
+
+  var meta = document.querySelector('meta[name="legisradar-serve-token"]');
+  var token = meta ? (meta.getAttribute('content') || '') : '';
+  // 服务模式：静态文件里这段 meta 是空的，只有本地服务应答时才填上 token。
+  var serveOn = token.length > 0;
+
+  var filter = { level: '', tags: [], query: '' };
+  // 原型链上没有东西的字典：hasOwnProperty 这类键名不该被当成真条目。
+  var collapsed = Object.create(null);
+  var shownCount = 0;
+  var shownAllClosed = false;
+
+  var summaryBox = document.getElementById('summary');
+  var heartbeatBox = document.getElementById('heartbeat');
+  var chipsLevel = document.getElementById('chips-level');
+  var chipsTags = document.getElementById('chips-tags');
+  var groupBox = document.getElementById('groups');
+  var emptyBox = document.getElementById('empty');
+  var searchBox = document.getElementById('search');
+  var aboutDlg = document.getElementById('about');
+  var themeBtn = document.getElementById('theme-toggle');
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (typeof text === 'string') { node.textContent = text; }
+    return node;
+  }
+
+  function button(cls, text, onClick) {
+    var node = el('button', cls, text);
+    node.type = 'button';
+    node.addEventListener('click', onClick);
+    return node;
+  }
+
+  /* ------------------------------------------------------------- 概览条 */
+
+  function stat(number, label, modifier) {
+    var box = el('span', modifier ? 'stat ' + modifier : 'stat');
+    box.appendChild(el('b', '', String(number)));
+    // 数字和说明之间空一格：排版上的间隔由 .stat 的 gap 给出，
+    // 这一点空白只在文本上成立。
+    box.appendChild(document.createTextNode(' '));
+    box.appendChild(el('span', '', label));
+    return box;
+  }
+
+  function renderSummary() {
+    summaryBox.textContent = '';
+    summaryBox.appendChild(stat(data.summary.open, T.summary_open, ''));
+    summaryBox.appendChild(stat(data.summary.soon, T.summary_soon, 'soon'));
+    summaryBox.appendChild(stat(data.summary.closed, T.summary_closed, ''));
+  }
+
+  function renderHeartbeat() {
+    heartbeatBox.textContent = '';
+    if (data.heartbeat.level) {
+      var cls = 'dot' + (data.heartbeat.level === 'ok' ? '' : ' ' + data.heartbeat.level);
+      heartbeatBox.appendChild(el('span', cls, ''));
+    }
+    heartbeatBox.appendChild(el('span', '', data.heartbeat.text));
+  }
+
+  /* --------------------------------------------------------------- 筛选 */
+
+  function renderChips() {
+    chipsLevel.textContent = '';
+    data.level_chips.forEach(function (name, index) {
+      var value = index === 0 ? '' : name;
+      var chip = button('chip', name, function () {
+        // 层级是单选；再点一下已选中的那个等于取消，回到「全部层级」。
+        filter.level = (filter.level === value) ? '' : value;
+        renderChips();
+        render();
+      });
+      chip.setAttribute('aria-pressed', filter.level === value ? 'true' : 'false');
+      chipsLevel.appendChild(chip);
+    });
+
+    chipsTags.textContent = '';
+    data.tags.forEach(function (tag) {
+      var chip = button('chip', tag.name, function () {
+        // 门类是多选，命中任一即算命中。
+        var at = filter.tags.indexOf(tag.name);
+        if (at >= 0) { filter.tags.splice(at, 1); } else { filter.tags.push(tag.name); }
+        renderChips();
+        render();
+      });
+      chip.setAttribute('aria-pressed', filter.tags.indexOf(tag.name) >= 0 ? 'true' : 'false');
+      chipsTags.appendChild(chip);
+    });
+  }
+
+  function matches(row) {
+    if (filter.level && row.level !== filter.level) { return false; }
+    if (filter.tags.length) {
+      var hit = false;
+      for (var i = 0; i < row.tags.length; i += 1) {
+        if (filter.tags.indexOf(row.tags[i]) >= 0) { hit = true; break; }
+      }
+      if (!hit) { return false; }
+    }
+    if (filter.query && row.haystack.indexOf(filter.query) < 0) { return false; }
+    return true;
+  }
+
+  /* --------------------------------------------------------------- 相关条目 */
+
+  // 全量条目按 id 建一张表：相关条目给的是 id，标题与链接都要到这里查。
+  // 原型链上没有东西的字典 —— 一个叫「constructor」的 id 不该命中原型上的东西。
+  var byId = Object.create(null);
+  data.groups.forEach(function (group) {
+    group.rows.forEach(function (row) { byId[row.id] = row; });
+  });
+
+  /* 相关条目后面那枚短标记：点不点进去，取决于它还开着几天。 */
+  function remainText(row) {
+    if (row.state !== 'open') { return T.group_closed; }
+    if (row.days === null) { return T.related_none; }
+    if (row.days === 0) { return T.related_today; }
+    return T.related_days.replace('{n}', String(row.days));
+  }
+
+  /* 相关条目那一块。没有相关的条目返回 null，整块不画。 */
+  function relatedBlock(row) {
+    if (!row.related.length) { return null; }
+    var box = el('details', 'related');
+    box.appendChild(el('summary', '', T.related_summary.replace('{n}', String(row.related.length))));
+    var list = el('ul', '');
+    row.related.forEach(function (ident) {
+      var entry = byId[ident];
+      var line = el('li', '');
+      if (!entry) {
+        // 全量表里都查不到，只可能是这条已经被跨来源去重并掉了：如实说一句。
+        line.appendChild(el('span', 'gone', T.related_gone));
+      } else {
+        // href 取自 payload 里那条已经过闸的链接，和标题上的链接同一条。
+        if (entry.href) {
+          var anchor = el('a', '', entry.title);
+          anchor.setAttribute('href', entry.href);
+          anchor.setAttribute('target', '_blank');
+          anchor.setAttribute('rel', 'noreferrer noopener');
+          line.appendChild(anchor);
+        } else {
+          // 没有可用链接：列标题但不给它 href，不装扮成点得动的样子。
+          line.appendChild(el('span', '', entry.title));
+        }
+        line.appendChild(el('span', 'rk' + (entry.state === 'open' ? '' : ' closed'), remainText(entry)));
+      }
+      list.appendChild(line);
+    });
+    box.appendChild(list);
+    return box;
+  }
+
+  /* --------------------------------------------------------------- 条目 */
+
+  function renderRow(row) {
+    var item = el('li', 'row');
+    item.setAttribute('data-urg', String(row.urg));
+
+    var cd = el('div', 'cd');
+    if (row.days === null) {
+      // 没有截止日期就不印数字：NaN、-1、Infinity 这类东西不该出现在这里。
+      cd.appendChild(el('span', 'none', T.no_deadline));
+    } else {
+      cd.appendChild(el('span', 'n', String(row.days)));
+      cd.appendChild(el('span', 'u', T.unit_day));
+    }
+    item.appendChild(cd);
+
+    var body = el('div', 'row-body');
+
+    var title = el('h3', 'title');
+    if (row.href) {
+      var anchor = el('a', '', row.title);
+      anchor.setAttribute('href', row.href);
+      anchor.setAttribute('target', '_blank');
+      anchor.setAttribute('rel', 'noreferrer noopener');
+      title.appendChild(anchor);
+    } else {
+      // 没有可用链接时标题就是纯文本：不加 href、不加指针、不加下划线，
+      // 不把它装扮成点得动的样子。
+      title.appendChild(document.createTextNode(row.title));
+    }
+    body.appendChild(title);
+
+    if (row.meta.length) {
+      var metaLine = el('div', 'meta');
+      row.meta.forEach(function (part, index) {
+        if (index > 0) { metaLine.appendChild(el('span', 'sep', '·')); }
+        if (part.k === 'lvl') {
+          var badge = el('span', 'lvl', part.v);
+          badge.setAttribute('data-l', part.v);
+          metaLine.appendChild(badge);
+        } else if (part.k === 'date') {
+          metaLine.appendChild(el('span', 'mono', part.v));
+        } else {
+          metaLine.appendChild(el('span', '', part.v));
+        }
+      });
+      body.appendChild(metaLine);
+    }
+
+    var notes = el('div', 'note');
+    if (row.comments !== null) {
+      notes.appendChild(el('span', '', T.comments.replace('{n}', String(row.comments))));
+    }
+    if (row.manual) {
+      notes.appendChild(el('span', 'mark', T.manual_mark));
+    }
+    if (notes.childNodes.length) { body.appendChild(notes); }
+
+    if (row.tags.length) {
+      var tags = el('div', 'tags');
+      row.tags.forEach(function (tag) { tags.appendChild(el('span', 'tag', tag)); });
+      body.appendChild(tags);
+    }
+
+    var related = relatedBlock(row);
+    if (related) { body.appendChild(related); }
+
+    var actions = el('div', 'row-act');
+    // 只有一条链接时标题本身就是那个链接，这里不再重复一枚按钮。
+    if (row.links.length > 1) {
+      row.links.forEach(function (url) {
+        var link = el('a', 'link', T.open_link);
+        link.setAttribute('href', url);
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noreferrer noopener');
+        actions.appendChild(link);
+      });
+    }
+
+    if (serveOn) {
+      var wanted = !row.manual;
+      var toggle = button('btn', row.manual ? T.mark_reopen : T.mark_closed, function () {
+        // 先说清楚再动手，而且要在禁用之前问：点「取消」时这一行必须原样不动、
+        // 按钮还得能再点 —— 先禁用再问会出现「点了取消按钮就废了」。
+        if (wanted && !window.confirm(T.confirm_dismiss)) { return; }
+        toggle.disabled = true;
+        fetch('/api/items/' + encodeURIComponent(row.id) + '/user-closed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Serve-Token': token },
+          body: JSON.stringify({ closed: wanted })
+        }).then(function (response) {
+          if (!response.ok) { throw new Error('HTTP ' + response.status); }
+          window.location.reload();
+        }).catch(function () {
+          toggle.disabled = false;
+          toggle.textContent = T.save_failed;
+        });
+      });
+      actions.appendChild(toggle);
+    } else if (!row.links.length) {
+      // 只要这一行上还显示着那个按钮，就不显示这句话：
+      // 一行里明明有个能点的按钮，再说「没有可打开的原文链接」是噪音。
+      actions.appendChild(el('span', 'nolink', S.no_link));
+    }
+
+    if (actions.childNodes.length) { body.appendChild(actions); }
+    item.appendChild(body);
+    return item;
+  }
+
+  /* --------------------------------------------------------------- 分组 */
+
+  var GROUPS = {
+    soon: { title: T.group_soon, headNote: T.group_soon_note, subNote: '', cls: 'group-hd soon' },
+    open: { title: T.group_open, headNote: '', subNote: '', cls: 'group-hd' },
+    closed: { title: T.group_closed, headNote: '', subNote: T.group_closed_note, cls: 'group-hd' }
+  };
+
+  function renderGroups() {
+    groupBox.textContent = '';
+    var shown = [];
+    data.groups.forEach(function (group) {
+      var spec = GROUPS[group.key];
+      var rows = group.rows.filter(matches);
+      // 空组不画。
+      if (!rows.length) { return; }
+      shown = shown.concat(rows);
+
+      var section = el('section', 'group');
+      var expanded = !collapsed[group.key];
+      var list = el('ul', 'rows');
+      rows.forEach(function (row) { list.appendChild(renderRow(row)); });
+      if (!expanded) { list.hidden = true; }
+
+      var head = button(spec.cls, '', function () {
+        collapsed[group.key] = !collapsed[group.key];
+        list.hidden = !!collapsed[group.key];
+        head.setAttribute('aria-expanded', collapsed[group.key] ? 'false' : 'true');
+      });
+      head.appendChild(el('h2', '', spec.title));
+      head.appendChild(el('span', 'count', String(rows.length)));
+      if (spec.headNote) { head.appendChild(el('span', 'group-note', spec.headNote)); }
+      head.appendChild(el('span', 'caret', '▾'));
+      head.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+
+      section.appendChild(head);
+      if (spec.subNote) { section.appendChild(el('p', 'group-sub', spec.subNote)); }
+      section.appendChild(list);
+      groupBox.appendChild(section);
+    });
+
+    shownCount = shown.length;
+    shownAllClosed = shown.length > 0 && shown.every(function (row) {
+      return row.state === 'closed';
+    });
+  }
+
+  /* --------------------------------------------------------------- 空态 */
+
+  function renderEmpty() {
+    var total = data.library.total;
+    var title = '';
+    var lines = [];
+    if (total > 0 && shownCount === 0) {
+      title = T.empty_filtered_title;
+      lines.push(T.empty_filtered_body);
+    } else if (total > 0 && shownAllClosed) {
+      title = T.empty_open_title;
+      lines.push(T.empty_open_body);
+      lines.push(S.no_live_tail);
+    } else if (total === 0 && !data.library.has_run) {
+      title = T.empty_open_title;
+      lines.push(S.no_data);
+    } else if (total === 0) {
+      title = T.empty_open_title;
+      lines.push(T.empty_open_body);
+    }
+
+    emptyBox.textContent = '';
+    if (!title) { emptyBox.hidden = true; return; }
+    emptyBox.hidden = false;
+    emptyBox.appendChild(el('h2', '', title));
+    lines.forEach(function (line) { emptyBox.appendChild(el('p', '', line)); });
+  }
+
+  /* --------------------------------------------------------------- 面板 */
+
+  function kv(key, value, mono) {
+    var row = el('div', 'kv');
+    row.appendChild(el('span', 'k', key));
+    var cell = el('span', 'v');
+    if (mono) {
+      var code = el('code', '', value);
+      cell.appendChild(code);
+    } else {
+      cell.textContent = value;
+    }
+    row.appendChild(cell);
+    return row;
+  }
+
+  function renderAbout() {
+    var about = data.about;
+    document.getElementById('about-heading').textContent = T.about_title;
+    document.getElementById('about-close').textContent = T.about_close;
+
+    var body = document.getElementById('about-body');
+    body.textContent = '';
+
+    var when = el('h3', '', T.about_when);
+    body.appendChild(when);
+    body.appendChild(kv(S.freshness, about.freshness, false));
+    body.appendChild(kv(S.data_at, about.index_at, false));
+    body.appendChild(kv(S.last_run, about.last_run, false));
+    body.appendChild(kv(T.count_label, String(about.count), false));
+
+    body.appendChild(el('h3', '', T.about_where));
+    body.appendChild(kv('items.jsonl', about.items_path, true));
+    body.appendChild(kv('runs.jsonl', about.runs_path, true));
+    body.appendChild(el('p', 'hint', T.about_where_note.replace('{dir}', about.data_dir)));
+
+    body.appendChild(el('h3', '', T.about_version));
+    body.appendChild(el('p', '', about.version));
+    body.appendChild(el('p', 'hint', S.refresh_hint));
+    body.appendChild(el('p', '', S.about_tail));
+  }
+
+  /* --------------------------------------------------------------- 主题 */
+
+  function readTheme() {
+    try {
+      if (window.localStorage.getItem(THEME_KEY) === 'dark') { return 'dark'; }
+    } catch (err) {
+      /* 读不到就浅色。 */
+    }
+    /* 旧版本存过 ''（跟随系统）的，这里一并落到浅色 —— 那是唯一一个
+       不需要猜「读者的系统是什么」的默认值。 */
+    return 'light';
+  }
+
+  function applyTheme(mode) {
+    document.documentElement.setAttribute('data-theme', mode);
+    themeBtn.textContent = mode === 'dark' ? T.theme_dark : T.theme_light;
+  }
+
+  function renderThemeButton() {
+    applyTheme(readTheme());
+  }
+
+  themeBtn.addEventListener('click', function () {
+    var next = THEME_MODES[(THEME_MODES.indexOf(readTheme()) + 1) % THEME_MODES.length];
+    try {
+      window.localStorage.setItem(THEME_KEY, next);
+    } catch (err) {
+      /* 存不下就只影响这一次会话。 */
+    }
+    applyTheme(next);
+  });
+
+  /* --------------------------------------------------------------- 装配 */
+
+  function render() {
+    renderGroups();
+    renderEmpty();
+  }
+
+  document.getElementById('subtitle').textContent = T.subtitle;
+  document.getElementById('footer-source').textContent = S.footer_source;
+  document.getElementById('refresh-hint').textContent = S.refresh_hint;
+  document.getElementById('about-open').textContent = T.about_button;
+  searchBox.setAttribute('placeholder', T.search_placeholder);
+  if (!serveOn) {
+    var hint = document.getElementById('serve-hint');
+    hint.textContent = S.serve_hint;
+    hint.hidden = false;
+  }
+
+  searchBox.addEventListener('input', function () {
+    filter.query = searchBox.value.trim().toLowerCase();
+    render();
+  });
+
+  document.getElementById('about-open').addEventListener('click', function () {
+    if (typeof aboutDlg.showModal === 'function') { aboutDlg.showModal(); }
+  });
+  document.getElementById('about-close').addEventListener('click', function () {
+    aboutDlg.close();
+  });
+
+  renderThemeButton();
+  renderSummary();
+  renderHeartbeat();
+  renderChips();
+  renderAbout();
+  render();
+})();
+</script>
+</body>
+</html>
